@@ -868,4 +868,4 @@ class Game:
         # if self.params['simulator']['data_type'] == 'OSC':
         #     self.ticks = 2  # TODO: Change when this is adjusted
 
-        self.clock.tick(self.ticks)
+        # self.clock.tick(self.ticks)

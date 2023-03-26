@@ -222,3 +222,5 @@ class PathGenerator():
         self.path = np.delete(self.path, (0), axis=0) # Remove empty-point from initialization
 
         return self.path#, self.intersection_waypoints
+    
+

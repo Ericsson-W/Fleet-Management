@@ -115,10 +115,10 @@ class OptiTrack:
 
         # TODO: understand why we have to use old and "new" is always empty
         # Rigid Body Data: ID is int, Pos in meters and Yaw in rad
-        self.rb_IDs                 = []
+        self.rb_IDs                 = [0,1,2,3,4] #5 vehicles
         self.rb_old_Ids             = []
         self.rb_Pos                 = []
-        self.rb_old_Pos             = []
+        self.rb_old_Pos             = [] # need to set position of 5 veh
         self.rb_Yaw                 = []
         self.rb_old_Yaw             = []
 
