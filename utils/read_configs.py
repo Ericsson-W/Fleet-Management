@@ -1,6 +1,6 @@
 import configparser
 from pathlib import Path
-
+import os
 
 class ConfigReader:
     def __init__(self, root_dir, config_file_name='config.ini'):
@@ -12,8 +12,16 @@ class ConfigReader:
 
         config_file_path = Path.joinpath(self.root_dir, config_file_name)
 
+        # Get the absolute path of the config file
+        abs_config_file_path = os.path.abspath(config_file_path)
+
+        # self.config = configparser.RawConfigParser()
+        # self.config.read(config_file_path)          
+
+
+
         self.config = configparser.RawConfigParser()
-        self.config.read(config_file_path)
+        self.config.read(abs_config_file_path)
 
         main_params = self.get_config_dict('Main Parameters',
                                            {'run_live': bool,
