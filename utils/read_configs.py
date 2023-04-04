@@ -10,10 +10,11 @@ class ConfigReader:
 
         self.config_file_name = config_file_name
 
-        config_file_path = Path.joinpath(self.root_dir, config_file_name)
+        config_file_path = Path.joinpath(self.root_dir, 'robots', self.config_file_name)
 
         # Get the absolute path of the config file
         abs_config_file_path = os.path.abspath(config_file_path)
+
 
         # self.config = configparser.RawConfigParser()
         # self.config.read(config_file_path)          
@@ -24,7 +25,7 @@ class ConfigReader:
         self.config.read(abs_config_file_path)
 
         main_params = self.get_config_dict('Main Parameters',
-                                           {'run_live': bool,
+                                        {'run_live': bool,
                                             'screen_width': int,
                                             'screen_height': int,
                                             'screen_scale': int,
@@ -38,10 +39,10 @@ class ConfigReader:
         # TODO: fix this
         # if self.params['main']['run_live']:
         self.params.update({'robots': self.read_robots()})
-        # else:
-        self.params.update({'simulator': self.read_sim()})
+        # # else:
+        # self.params.update({'simulator': self.read_sim()})
 
-        self.params.update({'model': self.read_models()})
+        # self.params.update({'model': self.read_models()})
 
     def read_robots(self):
 
@@ -72,58 +73,58 @@ class ConfigReader:
 
         return robot_params
 
-    def read_sim(self):
+    # def read_sim(self):
 
-        config_file_path = Path.joinpath(self.root_dir, 'simulator', self.config_file_name)
+    #     config_file_path = Path.joinpath(self.root_dir, 'simulator', self.config_file_name)
 
-        self.config = configparser.RawConfigParser()
-        self.config.read(config_file_path)
+    #     self.config = configparser.RawConfigParser()
+    #     self.config.read(config_file_path)
 
-        sim_params = self.get_config_dict('Simulator Parameters',
-                                          {'path_data': str,
-                                           'visualization': bool,
-                                           'data_type': str,
-                                           'scenario_id': str,  # Not int here, it's a name
-                                           'scenario': int,
-                                           'start_time': int,
-                                           'end_time': int,
-                                           'ego_vehicle_id': int,
-                                           'ego_perspective': bool,
-                                           'stochastic': bool,
-                                           'col_pred_time': float,
-                                           'controllable_agent': bool,
-                                           'rl_agent': bool,
-                                           'rl_model': str,
-                                           'ego_position': bool,
-                                           'ego_perception': bool,
-                                           'zoom_to_ego': bool,
-                                           'path_lanelets': str,
-                                           'car_length': float,
-                                           'car_width': float,
-                                           'perception_r': float,
-                                           'discrete_acceleration': int,
-                                           'grid_length': float,
-                                           'grid_divisions': int
-                                           })
+    #     sim_params = self.get_config_dict('Simulator Parameters',
+    #                                       {'path_data': str,
+    #                                        'visualization': bool,
+    #                                        'data_type': str,
+    #                                        'scenario_id': str,  # Not int here, it's a name
+    #                                        'scenario': int,
+    #                                        'start_time': int,
+    #                                        'end_time': int,
+    #                                        'ego_vehicle_id': int,
+    #                                        'ego_perspective': bool,
+    #                                        'stochastic': bool,
+    #                                        'col_pred_time': float,
+    #                                        'controllable_agent': bool,
+    #                                        'rl_agent': bool,
+    #                                        'rl_model': str,
+    #                                        'ego_position': bool,
+    #                                        'ego_perception': bool,
+    #                                        'zoom_to_ego': bool,
+    #                                        'path_lanelets': str,
+    #                                        'car_length': float,
+    #                                        'car_width': float,
+    #                                        'perception_r': float,
+    #                                        'discrete_acceleration': int,
+    #                                        'grid_length': float,
+    #                                        'grid_divisions': int
+    #                                        })
 
-        return sim_params
+    #     return sim_params
 
-    def read_models(self):
+    # def read_models(self):
 
-        config_file_path = Path.joinpath(self.root_dir, 'models', self.config_file_name)
+    #     config_file_path = Path.joinpath(self.root_dir, 'models', self.config_file_name)
 
-        self.config = configparser.RawConfigParser()
-        self.config.read(config_file_path)
+    #     self.config = configparser.RawConfigParser()
+    #     self.config.read(config_file_path)
 
-        model_parameters = self.get_config_dict('Model Parameters',
-                                                {'pred_ignore': float,
-                                                 'var_lon': float,
-                                                 'var_steer': float,
-                                                 'var_p': float,
-                                                 'var_v': float
-                                                 })
+    #     model_parameters = self.get_config_dict('Model Parameters',
+    #                                             {'pred_ignore': float,
+    #                                              'var_lon': float,
+    #                                              'var_steer': float,
+    #                                              'var_p': float,
+    #                                              'var_v': float
+    #                                              })
 
-        return model_parameters
+    #     return model_parameters
 
     def get_config_dict(self, section_name, type_dict):
         new_dict = dict(self.config.items(section_name))
@@ -137,8 +138,7 @@ class ConfigReader:
         return return_dict
 
 
-if __name__ == '__main__':
-    cr = ConfigReader()
+
 
 
 ### Old version from extract_scenario, do not delete until comprehensive testing done, may contain useful parameters.

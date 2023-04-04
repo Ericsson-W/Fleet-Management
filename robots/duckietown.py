@@ -9,6 +9,8 @@ from  typing import List
 from duckietown_msgs.msg import WheelsCmdStamped
 from std_msgs.msg import header
 
+
+
 ############################
 ###  Inverse Kinematics  ###
 ############################
@@ -106,8 +108,8 @@ class Duckiebot():
         wheel_vel_left, wheel_vel_right = duckiebot_inverse_kinematics(self.kinematic_parameters, v, omega)
 
         wheelVel_msg = WheelsCmdStamped()
-        wheelVel_msg.header = Header()
-        wheelVel_msg.header.stamp = rospy.Time.now()
+        # wheelVel_msg.header = Header()
+        # wheelVel_msg.header.stamp = rospy.Time.now()
         wheelVel_msg.vel_left, wheelVel_msg.vel_right = [wheel_vel_left, wheel_vel_right]
 
         self.rospub_wheel_vel.publish(wheelVel_msg)

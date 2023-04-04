@@ -102,19 +102,23 @@ class LiveSimulator:
 
         # # Instantiating controller class(es)
         # # TODO: make function for this, different controller take different arguments for initialization
-        # if self.controller_type == "individual":
-        #     self.controllers = {vehicle: controller_class(self.params, vehicle)
-        #                                 for vehicle in self.controlled_vehicles.keys()}
+        if self.controller_type == "individual":
+             self.controllers = {vehicle: controller_class(self.params, vehicle)
+                                         for vehicle in self.controlled_vehicles.keys()}
         
-        # elif self.controller_type == "central":
+        elif self.controller_type == "central":
 
-        #     if controller_name == "intersection_demo" or controller_name == "constant_linear_vel":
-        #         self.controller = controller_class(
-        #             controller_params, self.params['robots'], self.path_generator,
-        #             self.controlled_vehicles, self.goal_paths, self.delta_t
-        #         )
+             if controller_name == "intersection_demo" or controller_name == "constant_linear_vel":
+                 self.controller = controller_class(
+                     controller_params, self.params['robots'], self.path_generator,
+                     self.controlled_vehicles, self.goal_paths, self.delta_t
+                 )
 
 
+        print("controller_name:", controller_name)
+        print("controller_type:", self.controller_type)
+        print("controller_params:", controller_params)
+        print("controller_class:", controller_class)
         # self.background_data = None
 
         # while True:
@@ -129,7 +133,8 @@ class LiveSimulator:
         # i.e. by using linear v and steering angle for all robot types
 
         # 1 = scale; TODO: make math according to map range and size of car
-        self.game = Game('live', 1, self.ranges, self.params, self.background_data)
+        # self.game = Game('live', 1, self.ranges, self.params, self.background_data)
+
 
         # TODO: assigned car images can be changed (for live at least),
         # the objects in self.tracked vehicles already contain the class + dimensions, 
@@ -137,7 +142,7 @@ class LiveSimulator:
 
         # dummy to be removed latter after changing assign_car_images()
         vehicles_data = {vehicle: {'class': self.controlled_vehicles[vehicle].vehicle_type, 'dimensions': self.controlled_vehicles[vehicle].dimensions} for vehicle in self.controlled_vehicles.keys()}
-        self.game.assign_car_images(self.controlled_vehicles, vehicles_data)
+        # self.game.assign_car_images(self.controlled_vehicles, vehicles_data)
 
     
     def safe_program_shutdown(self, sig=None, frame=None):
@@ -161,6 +166,48 @@ class LiveSimulator:
 
     # TODO: change all log messages (print statements) to be from Debug: Info: or Error:
 
+    # def run_game(self):
+    #     """ Function that we loop over during experiment.
+    #     """
+
+    #     # Checks for CTRL+C inputs
+    #     signal.signal(signal.SIGINT, self.safe_program_shutdown)
+
+    #     while not self.game.close_window():
+
+    #         # Updating vehicles' pose
+    #         ## TODO: do i have to return dict again or just update its variables inside the function?
+    #         self.controlled_vehicles = self.optitrack.update_poses(self.controlled_vehicles)
+            
+    #         # Append pose to pose history
+    #         for vehicle in self.vehicles_traces:
+    #             #print(f"appending to pose -> {np.append(self.controlled_vehicles[vehicle].position, self.controlled_vehicles[vehicle].angle)}")
+    #             self.vehicles_traces[vehicle].append(
+    #                 np.append(self.controlled_vehicles[vehicle].position, self.controlled_vehicles[vehicle].angle)
+    #             )
+
+    #         # Individual Control Step
+    #         if self.controller_type == "individual":
+    #             for vehicle in self.controlled_vehicles:
+    #                 self.controllers[vehicle].control_step()
+
+    #         # Central Control Step
+    #         if self.controller_type == "central":
+    #             self.controller.control_step()
+
+    #         # TODO: do the controllers also publish command to vehicle or is that in run_live.py
+    #         # Friday: controllers .py saves to "cmd" variable in duckie class and the run_live published cmd
+
+    #         # TODO: multiply pos by 100 (like before) inside game.draw_quick for scale? Sure should change plotting
+    #         # to be based on meters by default
+            
+    #         # TODO: clean arguments passed into draw_quick
+    #         self.game.draw_quick(self.controlled_vehicles, self.vehicles_traces, self.goal_paths, self.controller)
+
+    #     # When game window is closed
+    #     self.safe_program_shutdown()
+
+
     def run_game(self):
         """ Function that we loop over during experiment.
         """
@@ -168,15 +215,12 @@ class LiveSimulator:
         # Checks for CTRL+C inputs
         signal.signal(signal.SIGINT, self.safe_program_shutdown)
 
-        while not self.game.close_window():
-
+        while True:
             # Updating vehicles' pose
-            ## TODO: do i have to return dict again or just update its variables inside the function?
             self.controlled_vehicles = self.optitrack.update_poses(self.controlled_vehicles)
             
             # Append pose to pose history
             for vehicle in self.vehicles_traces:
-                #print(f"appending to pose -> {np.append(self.controlled_vehicles[vehicle].position, self.controlled_vehicles[vehicle].angle)}")
                 self.vehicles_traces[vehicle].append(
                     np.append(self.controlled_vehicles[vehicle].position, self.controlled_vehicles[vehicle].angle)
                 )
@@ -190,17 +234,14 @@ class LiveSimulator:
             if self.controller_type == "central":
                 self.controller.control_step()
 
-            # TODO: do the controllers also publish command to vehicle or is that in run_live.py
-            # Friday: controllers .py saves to "cmd" variable in duckie class and the run_live published cmd
+            # Check for KeyboardInterrupt to allow for a graceful exit
+            try:
+                signal.pause()
+            except KeyboardInterrupt:
+                self.safe_program_shutdown()
+                break
 
-            # TODO: multiply pos by 100 (like before) inside game.draw_quick for scale? Sure should change plotting
-            # to be based on meters by default
-            
-            # TODO: clean arguments passed into draw_quick
-            self.game.draw_quick(self.controlled_vehicles, self.vehicles_traces, self.goal_paths, self.controller)
 
-        # When game window is closed
-        self.safe_program_shutdown()
 
 if __name__ == '__main__':
     Sim = LiveSimulator()
