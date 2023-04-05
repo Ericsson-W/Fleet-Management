@@ -6,7 +6,7 @@ import time
 
 import utils.pre_processing as dyn
 from robots.duckietown import duckiebot_inverse_kinematics
-from robots.controllers.general.PID import PID
+from robots.PID import PID
 
 
 
@@ -288,7 +288,7 @@ class intersection_demo():
 
             # Using info obtained above to get control action
             v, omega = self.control_action(vehicle, distance2front_vehicle)
-            
+            print(v, omega)
             # Robot object converts (v,omega) to the required ROS command
             self.controlled_vehicles[vehicle].publish_cmd(v, omega)
 

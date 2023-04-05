@@ -13,9 +13,7 @@ while not os.path.isfile('main.py'):
 
 root_dir = os.getcwd()
 
-path = Path.joinpath(root_dir, 'robots', 'config.ini')
-
-params = ConfigReader(path).params
+params = ConfigReader(root_dir).params
 
 if params['main']['run_live']:
     sim = LiveSimulator(params)

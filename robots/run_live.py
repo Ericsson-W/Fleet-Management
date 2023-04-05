@@ -12,15 +12,15 @@
 
 import importlib
 import time
-# import rospy, all instances of rospy commented
+import rospy
 import signal
 import numpy as np
 import sys
 
-# import robots.ros as ros
-# import robots.duckietown as duckietown, all instances of rospy commented
+import ros as ros
+import robots.duckietown as duckietown
 import robots.optitrack as optitrack
-# from robots.old_controllers import constant_linear_vel, intersection_demo
+from robots.old_controllers import constant_linear_vel, intersection_demo
 from robots.path_generation import PathGenerator
 from utils.game import Game
 
@@ -47,10 +47,10 @@ class LiveSimulator:
         self.controlled_vehicles = dict()
         
         ## Duckiebots, name convention="tdXX"
-        # self.controlled_vehicles.update(
-        #     {int(vehicle_name[2:5]): duckietown.Duckiebot(vehicle_name)  
-        #         for vehicle_name in self.params['robots']['controlled_vehicles'] if vehicle_name[0:2] == "td"}
-        # )
+        self.controlled_vehicles.update(
+            {int(vehicle_name[2:5]): duckietown.Duckiebot(vehicle_name)  
+                for vehicle_name in self.params['robots']['controlled_vehicles'] if vehicle_name[0:2] == "td"}
+        )
 
         # ## Jetracers, name convention="jrXX"
         # self.controlled_vehicles.update(
@@ -68,13 +68,13 @@ class LiveSimulator:
         self.vehicles_traces = {vehicle: [] for vehicle in self.controlled_vehicles.keys()}
 
         # Checking wheter we need to start rosbridge (roscore is handled at system level)
-        # ros.handle_rosbridge()
+        ros.handle_rosbridge()
 
-        # # Starting UST0 ROS node
-        # desktop_hostname_ROScompliant = self.desktop_hostname.replace("-", "") # can't contain "-"
-        # # rospy.init_node(f"{desktop_hostname_ROScompliant}_ust0")
-        # print(f">> Started `{desktop_hostname_ROScompliant}_ust0` node.")
-        # time.sleep(2)
+        # Starting UST0 ROS node
+        desktop_hostname_ROScompliant = self.desktop_hostname.replace("-", "") # can't contain "-"
+        rospy.init_node(f"{desktop_hostname_ROScompliant}_ust0")
+        print(f">> Started `{desktop_hostname_ROScompliant}_ust0` node.")
+        time.sleep(2)
 
 
         # Initiliazing OptiTrack Class & NatNet Client 
@@ -121,12 +121,12 @@ class LiveSimulator:
         print("controller_class:", controller_class)
         # self.background_data = None
 
-        # while True:
-        #     user_command = input("\n>> Please prepare the physical environment for the experiment.\n>> Enter 's' when ready to run UST0 or 'q' to quit: ")
-        #     if user_command.lower() == "s":
-        #         break
-        #     elif user_command.lower() == "q":
-        #         self.safe_program_shutdown()
+        while True:
+            user_command = input("\n>> Please prepare the physical environment for the experiment.\n>> Enter 's' when ready to run UST0 or 'q' to quit: ")
+            if user_command.lower() == "s":
+                break
+            elif user_command.lower() == "q":
+                self.safe_program_shutdown()
 
         # TODO: change all units from CM to meters
         # TODO: whenever involves controlled_vehicles check if type is duckiebot or jetracer; AND/OR try to make command like publish_cmd() independent of robot type
@@ -216,6 +216,7 @@ class LiveSimulator:
         signal.signal(signal.SIGINT, self.safe_program_shutdown)
 
         while True:
+            print("yes")
             # Updating vehicles' pose
             self.controlled_vehicles = self.optitrack.update_poses(self.controlled_vehicles)
             
@@ -234,12 +235,12 @@ class LiveSimulator:
             if self.controller_type == "central":
                 self.controller.control_step()
 
-            # Check for KeyboardInterrupt to allow for a graceful exit
-            try:
-                signal.pause()
-            except KeyboardInterrupt:
-                self.safe_program_shutdown()
-                break
+            # # Check for KeyboardInterrupt to allow for a graceful exit
+            # try:
+            #     signal.pause()
+            # except KeyboardInterrupt:
+            #     self.safe_program_shutdown()
+            #     break
 
 
 
