@@ -288,7 +288,7 @@ class intersection_demo():
 
             # Using info obtained above to get control action
             v, omega = self.control_action(vehicle, distance2front_vehicle)
-            print(v, omega)
+            
             # Robot object converts (v,omega) to the required ROS command
             self.controlled_vehicles[vehicle].publish_cmd(v, omega)
 
