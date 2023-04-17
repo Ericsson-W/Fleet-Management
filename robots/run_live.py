@@ -216,7 +216,6 @@ class LiveSimulator:
         signal.signal(signal.SIGINT, self.safe_program_shutdown)
 
         while True:
-            print("yes")
             # Updating vehicles' pose
             self.controlled_vehicles = self.optitrack.update_poses(self.controlled_vehicles)
             
