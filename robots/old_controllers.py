@@ -185,8 +185,33 @@ class intersection_demo():
             v = 0.0
             omega = 0.0
 
+        # # If close to obstacle
+        # omega_default = omega
+        # v_default = v
+        # distance = np.sqrt((location[0]-obstacle[0])**2+(location[1]-obstacle[1])**2)
+        
+        # cond = True
+        # while cond:
+        #     if distance <= 10:
+        #         cond = True # deviates
+        #         step_size = 1
+        #         radius = 15
+
+        #         dx,dy = location[0]-obstacle[0], location[1],obstacle[1]
+        #         angle=math.atan2(dy,dx)
+        #         omega=angle+step_size/radius    
+        #         location = obstacle[0]+radius*math.cos(omega), obstacle[1]+radius*math.sin(omega)
+        #         v = 0.5
+        #     else:
+        #         cond = False # goes back to path
+        #         omega = omega_default
+        #         v = v_default
+        
         return v, omega
 
+        
+        
+        
 
     def control_step(self):
 
@@ -288,6 +313,7 @@ class intersection_demo():
 
             # Using info obtained above to get control action
             v, omega = self.control_action(vehicle, distance2front_vehicle)
+            
             # Robot object converts (v,omega) to the required ROS command
             self.controlled_vehicles[vehicle].publish_cmd(v, omega)
 
