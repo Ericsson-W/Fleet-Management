@@ -3,11 +3,10 @@ from os import close
 from sys import path
 import numpy as np
 import time
-import math
 
-import utils.pre_processing as dyn
+import utils.pre_processing.dynamics as dyn
 from robots.duckietown import duckiebot_inverse_kinematics
-from robots.PID import PID
+from robots.controllers.general.PID import PID
 
 
 
@@ -70,47 +69,47 @@ class constant_linear_vel():
 
     def control_step(self):
 
-            for vehicle in self.controlled_vehicles:
-                            
-                
-                # Selecting sub-section of path where the goal point can be located.
-                ## Because of path overlap at intersection, basic min distance would not work.
-                if self.vehicles_control_info[vehicle]['closest_path_point_index'] is None:
-                    goal_path_subset = self.goal_paths[vehicle]
+        for vehicle in self.controlled_vehicles:
+                        
+            
+            # Selecting sub-section of path where the goal point can be located.
+            ## Because of path overlap at intersection, basic min distance would not work.
+            if self.vehicles_control_info[vehicle]['closest_path_point_index'] is None:
+                goal_path_subset = self.goal_paths[vehicle]
 
+            else:
+                path_buffer_end_idx = self.vehicles_control_info[vehicle]['closest_path_point_index'] + self.buffer_points
+
+                # TODO: add something for when path_loop = False
+                if path_buffer_end_idx < len(self.goal_paths[vehicle]):
+                    goal_path_subset = self.goal_paths[vehicle][self.vehicles_control_info[vehicle]['closest_path_point_index']:path_buffer_end_idx]
                 else:
-                    path_buffer_end_idx = self.vehicles_control_info[vehicle]['closest_path_point_index'] + self.buffer_points
+                    overflow = path_buffer_end_idx - len(self.goal_paths[vehicle])
+                    goal_path_subset = self.goal_paths[vehicle][self.vehicles_control_info[vehicle]['closest_path_point_index']:len(self.goal_paths[vehicle])]
+                    goal_path_subset = np.concatenate([goal_path_subset, self.goal_paths[vehicle][:overflow]])
+            ###############
 
-                    # TODO: add something for when path_loop = False
-                    if path_buffer_end_idx < len(self.goal_paths[vehicle]):
-                        goal_path_subset = self.goal_paths[vehicle][self.vehicles_control_info[vehicle]['closest_path_point_index']:path_buffer_end_idx]
-                    else:
-                        overflow = path_buffer_end_idx - len(self.goal_paths[vehicle])
-                        goal_path_subset = self.goal_paths[vehicle][self.vehicles_control_info[vehicle]['closest_path_point_index']:len(self.goal_paths[vehicle])]
-                        goal_path_subset = np.concatenate([goal_path_subset, self.goal_paths[vehicle][:overflow]])
-                ###############
+            # Getting index of closest point in sub-path
+            distance_to_subpath_points = np.linalg.norm(self.controlled_vehicles[vehicle].position - goal_path_subset, axis=1)
+            min_distance = np.min(distance_to_subpath_points)
+            closest_pathpoint_idx = np.where(distance_to_subpath_points == min_distance)[0][0]
 
-                # Getting index of closest point in sub-path
-                distance_to_subpath_points = np.linalg.norm(self.controlled_vehicles[vehicle].position - goal_path_subset, axis=1)
-                min_distance = np.min(distance_to_subpath_points)
-                closest_pathpoint_idx = np.where(distance_to_subpath_points == min_distance)[0][0]
+            # Getting index of closest point in goal path
+            if self.vehicles_control_info[vehicle]['closest_path_point_index'] is not None:
+                closest_pathpoint_idx = (closest_pathpoint_idx + self.vehicles_control_info[vehicle]['closest_path_point_index']) % (len(self.goal_paths[vehicle])-1)
 
-                # Getting index of closest point in goal path
-                if self.vehicles_control_info[vehicle]['closest_path_point_index'] is not None:
-                    closest_pathpoint_idx = (closest_pathpoint_idx + self.vehicles_control_info[vehicle]['closest_path_point_index']) % (len(self.goal_paths[vehicle])-1)
-
-                self.vehicles_control_info[vehicle]['closest_path_point_index'] = closest_pathpoint_idx
+            self.vehicles_control_info[vehicle]['closest_path_point_index'] = closest_pathpoint_idx
 
 
-                # Getting target position
-                target_idx = (self.vehicles_control_info[vehicle]['closest_path_point_index'] + self.lookahead_points) % (len(self.goal_paths[vehicle]) - 1)
-                self.vehicles_control_info[vehicle]['target_pos'] = self.goal_paths[vehicle][target_idx]
+            # Getting target position
+            target_idx = (self.vehicles_control_info[vehicle]['closest_path_point_index'] + self.lookahead_points) % (len(self.goal_paths[vehicle]) - 1)
+            self.vehicles_control_info[vehicle]['target_pos'] = self.goal_paths[vehicle][target_idx]
 
-                # Using info obtained above to get control action
-                v, omega = self.control_action(vehicle)
+            # Using info obtained above to get control action
+            v, omega = self.control_action(vehicle)
 
-                # Robot object converts (v,omega) to the required ROS command
-                self.controlled_vehicles[vehicle].publish_cmd(v, omega)
+            # Robot object converts (v,omega) to the required ROS command
+            self.controlled_vehicles[vehicle].publish_cmd(v, omega)
 
 
 ###########################################
@@ -121,7 +120,7 @@ class constant_linear_vel():
 
 class intersection_demo():
     # self, controller_parameters: dict, optitrack_parameters: dict, path_generator, controlled_vehicles, goal_paths, delta_t
-    def __init__(self, controller_parameters: dict, path_parameters: dict, path_generator, controlled_vehicles, goal_paths, delta_t,obstacles:dict):
+    def __init__(self, controller_parameters: dict, path_parameters: dict, path_generator, controlled_vehicles, goal_paths, delta_t):
         
         self.v_bar:float        = controller_parameters["v_bar"]
         self.distance2front     = controller_parameters['distance2front']
@@ -150,7 +149,6 @@ class intersection_demo():
         self.intersection_timer_start = time.time()
         self.intersection_timer_ellapsed = None
 
-        self.obstacles = obstacles
     def control_action(self, vehicle, distance2front_vehicle):
         """ Uses info/values obtained from the control_step() to calculate the
             desired linear and angular velocities for the vehicles.
@@ -187,40 +185,6 @@ class intersection_demo():
             v = 0.0
             omega = 0.0
 
-
-        # If too close to obstacle
-
-        omega_default = omega
-        v_default = v
-        cond = False
-
-        for obstacle_key, obstacle in self.obstacles.items():
-            distance = np.sqrt((abs(self.controlled_vehicles[vehicle].position[0])-obstacle[0])**2 + (abs(self.controlled_vehicles[vehicle].position[1])-obstacle[1])**2)
-            print(self.controlled_vehicles[vehicle].position)
-            print(distance)
-            if distance <= 0.5:
-                cond = True
-                step_size=1
-                radius = 0.75
-                print ('obstacle detected')
-                dy,dx = abs(self.controlled_vehicles[vehicle].position[0]-obstacle[0]),abs(self.controlled_vehicles[vehicle].position[1]-obstacle[1])
-                angle = math.atan2(dy,dx)
-                omega = angle +step_size/radius
-                location = obstacle[0]+radius*math.cos(omega), obstacle[1]+radius*math.sin(omega)
-                v = 0.35
-                break
-
-            if not cond:
-                omega = omega_default
-                v = v_default
-                            
-                dy_target = self.vehicles_control_info[vehicle]['target_pos'][1] - self.controlled_vehicles[vehicle].position[1]
-                dx_target = self.vehicles_control_info[vehicle]['target_pos'][0] - self.controlled_vehicles[vehicle].position[0]
-                angle_target = math.atan2(dy_target, dx_target)
-                omega = angle_target
-
-
-        # print(self.controlled_vehicles[vehicle].position)
         return v, omega
 
 
@@ -292,7 +256,8 @@ class intersection_demo():
 
                     self.vehicles_control_info[vehicle]['intersection_waypoint'] = self.vehicles_control_info[vehicle]['target_pos']
                     self.vehicles_control_info[vehicle]['at_intersection'] = True
-                    self.intersection_queue.append(vehicle)
+                    if vehicle not in self.intersection_queue:
+                        self.intersection_queue.append(vehicle)
 
 
 
@@ -323,11 +288,15 @@ class intersection_demo():
             else: distance2front_vehicle = 99999999
 
             # Using info obtained above to get control action
+
             v, omega = self.control_action(vehicle, distance2front_vehicle)
+
+            
             # Robot object converts (v,omega) to the required ROS command
+
             self.controlled_vehicles[vehicle].publish_cmd(v, omega)
 
-            print(f"v: {v}, omega: {omega}")
+
 #########################
 ### Helper Functions ####
 #########################
