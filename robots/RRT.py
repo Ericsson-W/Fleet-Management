@@ -29,7 +29,7 @@ class RRT:
         new_point = np.array(nearest_point) + step_size * direction
         return tuple(new_point.tolist())
 
-    def rrt(self, start, goal, obstacles, max_iterations=10000, step_size=0.25, threshold=0.1):
+    def rrt(self, start, goal, obstacles, max_iterations=10000, step_size=0.25, target_tolerance=0.1):
         self.tree[start] = None
 
         iterations = 0
@@ -40,7 +40,7 @@ class RRT:
 
             if not self.is_collision(new_point, obstacles):
                 self.tree[new_point] = nearest_point
-                if np.linalg.norm(np.array(new_point) - np.array(goal)) <= threshold:
+                if np.linalg.norm(np.array(new_point) - np.array(goal)) <= target_tolerance:
                     self.tree[goal] = new_point
                     return self.build_path(start, goal)
             iterations += 1
@@ -55,10 +55,6 @@ class RRT:
             current_point = self.tree[current_point]
         path.insert(0, start)
         return path
-    def plot_tree(self):
-        for child, parent in self.tree.items():
-            if parent is not None:
-                plt.plot([child[0], parent[0]], [child[1], parent[1]], 'b-', alpha=0.5)
 
 rrt=RRT()
 
@@ -101,16 +97,3 @@ plt.title('RRT Obstacle avoidance')
 plt.grid()
 plt.show()
 
-plt.figure()
-plt.plot([start[0],end[0]],[start[1],end[1]],'go',label='plot')
-
-for obstacle in obstacles:
-    plt.plot(obstacle[0], obstacle[1], 'ro', label='Obstacle')
-
-rrt.plot_tree()
-
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.title('RRT Tree')
-plt.grid()
-plt.show()
