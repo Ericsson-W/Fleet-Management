@@ -4,12 +4,12 @@ from sys import path
 import numpy as np
 import time
 import math
-
 import matplotlib.pyplot as plt
+
 import utils.pre_processing as dyn
 from robots.duckietown import duckiebot_inverse_kinematics
 from robots.PID import PID
-from robots.RRT import RRT
+
 
 
 
@@ -50,7 +50,12 @@ class constant_linear_vel():
             "lateral_controller": PID(controller_parameters['PID'])} 
             for vehicle in self.controlled_vehicles.keys()
         }
-        
+
+
+    
+
+  
+     
     def control_action(self, vehicle):
         """ Uses info/values obtained from the control_step() to calculate the
             desired linear and angular velocities for the vehicles.
@@ -150,28 +155,24 @@ class intersection_demo():
         self.intersection_timeoff = controller_parameters['intersection_timeoff']
         self.intersection_timer_start = time.time()
         self.intersection_timer_ellapsed = None
-        self.intersection_stoptime = {}
 
         self.obstacles = obstacles
+
         self.vehicle_positions={vehicle: [] for vehicle in self.controlled_vehicles}
         self.iteration_count=0
         self.legend = False
-        self.figures={}
-
+        # for vehicle in self.controlled_vehicles:
+        #     self.vehicle_positions[vehicle]=[]
 
     def plot_path(self, vehicle):
         vehicle_positions = np.array(self.vehicle_positions[vehicle])
         target_pos = np.array(self.vehicles_control_info[vehicle]['target_pos'])
-        
+
         plt.plot(target_pos[0], target_pos[1], 'go', label='target path')
         plt.plot(vehicle_positions[:, 0], vehicle_positions[:, 1], 'b-', label='Vehicle Path')
 
         for obstacle_key, obstacle_position in self.obstacles.items():
             plt.plot(obstacle_position[0], -obstacle_position[1], 'ro', label='Obstacle')
-        
-        if hasattr(self,'rrt_path'):
-            plt.plot(self.rrt[:,0],self.rrt[:,1],'k',label='RRT')
-
         plt.title(f'Path of Vehicle {vehicle}')
         plt.xlabel('X')
         plt.ylabel('Y')
@@ -221,33 +222,7 @@ class intersection_demo():
                 else:
                     print("stopping at intersection")
                     v = 0.0
-                    omega = 0.0       
-            # if (self.vehicles_control_info[vehicle]['at_intersection']):
-            #     print(f"vehicle {vehicle} at intersection.")
-            #     distance2_intersect = np.linalg.norm(self.vehicles_control_info[vehicle]['intersection_waypoint'] - self.controlled_vehicles[vehicle].position)
-
-            #     # If not close enough to stop line slow down to reach it.
-            #     if (distance2_intersect > 0.10):
-            #         v = self.v_bar * 0.9
-            #         print("slowing down pre_intersection")
-            #     else:
-            #         if vehicle not in self.intersection_stoptime:
-            #             self.intersection_stoptime[vehicle]=time.time()
-
-            #         time_since = time.time() - self.intersection_stoptime[vehicle]
-            #         print(f"Vehicle{vehicle}:",time_since)
-            #         if time_since >=0.002:
-            #             omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)
-            #             v = 0.5
-            #             print(f"Vehicle{vehicle}starting to move after 5 seconds")
-
-            #         else: 
-            #             v = 0.0
-            #             omega = 0.0
-            #             print("stopping at intersection")
-
-            #     if v>0 and vehicle in self.intersection_stoptime:
-            #         del self.intersection_stoptime[vehicle]
+                    omega = 0.0
 
         elif state == 'obstacle':
         # If too close to obstacle
@@ -262,23 +237,12 @@ class intersection_demo():
                 print(distance)
                 if distance <= 0.5:
                     cond = True
-                    print('obstacle detected')
-                    rrt = RRT()
-                    path = rrt.rrt(self.controlled_vehicles[vehicle].position,self.vehicles_control_info[vehicle]['target_pos'],obstacle)
-
-                    dy_target = path[1][1]- self.controlled_vehicles[vehicle].position[1] 
-                    dx_target = path[1][0]- self.controlled_vehicles[vehicle].position[0]
-                                      
-                    angle_target = math.atan2(dy_target, dx_target)
-                    print('this is angle target',angle_target)
-                    omega = angle_target
-                    v = 0.3
-                    # radius = 0.75
-                    # print ('obstacle detected')
-                    # arc = distance*math.pi
-                    # omega = arc/2
-                    # v = max(omega*radius,0.4)
-                    # break
+                    radius = 0.75
+                    print ('obstacle detected')
+                    arc = distance*math.pi
+                    omega = -arc/2                   
+                    v = abs(omega*radius)
+                    break
 
                 else:
                     cond = False
@@ -287,15 +251,20 @@ class intersection_demo():
                     omega = omega_default
                     v = v_default
                 else:
-                    dy_target = self.vehicles_control_info[vehicle]['target_pos'][1] - self.controlled_vehicles[vehicle].position[1]
-                    dx_target = self.vehicles_control_info[vehicle]['target_pos'][0] - self.controlled_vehicles[vehicle].position[0]
-                    angle_target = math.atan2(dy_target, dx_target)
-                    omega = angle_target
+                    # dy_target = self.vehicles_control_info[vehicle]['target_pos'][1] - self.controlled_vehicles[vehicle].position[1]
+                    # dx_target = self.vehicles_control_info[vehicle]['target_pos'][0] - self.controlled_vehicles[vehicle].position[0]
+                    # angle_target = math.atan2(dy_target, dx_target)
+                    # omega = angle_target
+                    angle2target = dyn.angle(self.vehicles_control_info[vehicle]['target_pos'] - self.controlled_vehicles[vehicle].position, radians=True)
+                    heading_error = angle_within_range(angle2target - self.controlled_vehicles[vehicle].angle) # Range [-180, +180]            
+                    omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t) # PID controller   
 
         else:
-            v = self.v_bar
-            omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)          
-        # print(self.controlled_vehicles[vehicle].position)
+            angle2target = dyn.angle(self.vehicles_control_info[vehicle]['target_pos'] - self.controlled_vehicles[vehicle].position, radians=True)
+            heading_error = angle_within_range(angle2target - self.controlled_vehicles[vehicle].angle) # Range [-180, +180]            
+            omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t) # PID controller    
+
+        print(self.controlled_vehicles[vehicle].position)
         return v, omega
 
 
@@ -303,7 +272,9 @@ class intersection_demo():
 
         for vehicle in self.controlled_vehicles:
                         
-            
+            if vehicle not in self.vehicle_positions:
+                self.vehicle_positions[vehicle]=[]
+
             # Selecting sub-section of path where the goal point can be located.
             ## Because of path overlap at intersection, basic min distance would not work.
             if self.vehicles_control_info[vehicle]['closest_path_point_index'] is None:
@@ -357,9 +328,14 @@ class intersection_demo():
 
             # Checking if car at intersection
             # TODO: there is for sure a better way to do this (compare floats)
-            approx_target_pos = [np.round(elem,2) for elem in self.vehicles_control_info[vehicle]['target_pos']] 
+            approx_target_pos = [np.round(elem,2) for elem in self.controlled_vehicles[vehicle].position] 
             #print(approx_target_pos)
             #print(np.round(self.intersection_waypoints,2))
+            
+
+            # intersection_detected = False
+            # if np.min(np.linalg.norm(self.controlled_vehicles[vehicle].position - self.intersection_waypoints, axis =1)) < 0.5:
+            #     intersection_detected = True
 
             for intersection_pos in np.round(self.intersection_waypoints,2):
                 if (approx_target_pos == intersection_pos).all():
@@ -377,7 +353,7 @@ class intersection_demo():
             self.vehicles_control_info[vehicle]['obstacle_detection']=obstacle_detected
 
             if self.vehicles_control_info[vehicle]['at_intersection']:
-                self.vehicles_control_info[vehicle]['state'] = 'intersection'            
+                self.vehicles_control_info[vehicle]['state'] = 'intersection'                            
             elif self.vehicles_control_info[vehicle]['obstacle_detection']:
                 self.vehicles_control_info[vehicle]['state'] = 'obstacle'
             else:
@@ -413,17 +389,19 @@ class intersection_demo():
             # Using info obtained above to get control action
             v, omega = self.control_action(vehicle, distance2front_vehicle)
             # Robot object converts (v,omega) to the required ROS command
-            self.controlled_vehicles[vehicle].publish_cmd(v, omega)
-
+            self.controlled_vehicles[vehicle].publish_cmd(v, omega) 
+  
             print(f"v: {v}, omega: {omega}")
-
+  
             # Store vehicle positions
             self.vehicle_positions[vehicle].append(self.controlled_vehicles[vehicle].position)
 
-            # Update the plot
-
-
-########################
+            # Update the plot every 10 iterations
+            if self.iteration_count % 10 == 0:
+                self.plot_path(vehicle)
+            self.iteration_count += 1
+            
+#########################
 ### Helper Functions ####
 #########################
 
