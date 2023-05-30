@@ -141,7 +141,13 @@ class intersection_demo():
         self.vehicles_control_info = {
             vehicle: {"closest_path_point_index": None, "target_pos": None,
             "at_intersection": False, "intersection_waypoint": None,"obstacle_detected": False,"State":"normal",
-            "lateral_controller": PID(controller_parameters['PID'])}
+            "lateral_controller": PID(controller_parameters['PID']),
+            "total_time_in_obstacle":0,
+            "total_distance_in_obstacle":0,
+            "last_position":0,
+            "last_state":None,
+            "last_timestamp":0
+            }
             for vehicle in self.controlled_vehicles.keys()
         }
         
@@ -261,6 +267,8 @@ class intersection_demo():
                 print(self.controlled_vehicles[vehicle].position)
                 print(distance)
                 if distance <= 0.5:
+                    # RRT
+
                     cond = True
                     print('obstacle detected')
                     rrt = RRT()
@@ -273,11 +281,16 @@ class intersection_demo():
                     print('this is angle target',angle_target)
                     omega = angle_target
                     v = 0.3
+
+                    # Circular
+
+                    # cond = True
                     # radius = 0.75
                     # print ('obstacle detected')
                     # arc = distance*math.pi
-                    # omega = arc/2
-                    # v = max(omega*radius,0.4)
+                    # omega = -arc/2               
+                    # v=0.3    
+                    # # v = max(abs(omega*radius),0.3)
                     # break
 
                 else:
@@ -291,11 +304,30 @@ class intersection_demo():
                     dx_target = self.vehicles_control_info[vehicle]['target_pos'][0] - self.controlled_vehicles[vehicle].position[0]
                     angle_target = math.atan2(dy_target, dx_target)
                     omega = angle_target
+            # Track time and distance
+            current_time=time.time()
+            elapsed_time = current_time - self.vehicles_control_info[vehicle]['last_timestamp']
+            current_position = self.controlled_vehicles[vehicle].position
+            last_position = self.vehicles_control_info[vehicle]['last_position']
+            distance_travelled = np.linalg.norm(np.array(current_position) - np.array(last_position))
+            if self.vehicles_control_info[vehicle]['last_state'] == 'obstacle':
+                self.vehicles_control_info[vehicle]['total_time_in_obstacle'] += elapsed_time
+                self.vehicles_control_info[vehicle]['total_distance_in_obstacle'] += distance_travelled
+            self.vehicles_control_info[vehicle]['last_timestamp'] = current_time
+            self.vehicles_control_info[vehicle]['last_position'] = current_position
+
 
         else:
             v = self.v_bar
             omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)          
         # print(self.controlled_vehicles[vehicle].position)
+
+        self.vehicles_control_info[vehicle]['last_state'] = state
+        with open('vehicle_info.txt', 'a') as file:
+            file.write(f"Vehicle {vehicle}\n")
+            file.write(f"Total time in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_time_in_obstacle']} seconds\n")
+            file.write(f"Distance travelled in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_distance_in_obstacle']} units\n")
+            
         return v, omega
 
 

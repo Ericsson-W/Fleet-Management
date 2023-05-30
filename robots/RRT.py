@@ -29,11 +29,14 @@ class RRT:
         new_point = np.array(nearest_point) + step_size * direction
         return tuple(new_point.tolist())
 
-    def rrt(self, start, goal, obstacles, max_iterations=10000, step_size=0.25, target_tolerance=0.1):
+    def rrt(self, start, goal, obstacles, max_iterations=1000, step_size=0.25, target_tolerance=1):
+        print("RRT method called")
+        start = tuple(start)
+        goal = tuple(goal)
         self.tree[start] = None
-
         iterations = 0
         while iterations < max_iterations:
+            print("RRT iteration:",iterations)
             random_point = (random.uniform(0.0, -3.01),random.uniform(0.0,3.01)) 
             nearest_point = self.find_nearest_point(random_point)
             new_point = self.new_point(nearest_point, random_point, step_size)
@@ -45,7 +48,9 @@ class RRT:
                     return self.build_path(start, goal)
             iterations += 1
 
-        return None
+            if iterations == max_iterations:
+                print('max iterations reached')
+                return None
 
     def build_path(self, start, goal):
         path = []
@@ -56,44 +61,45 @@ class RRT:
         path.insert(0, start)
         return path
 
-rrt=RRT()
+# rrt=RRT()
 
-start = (0,1.5)
-end= (-1.5,0)
+# start = (0,1.5)
+# end= (-1.5,0)
 
-obstacle1 = (0.5, 0.5)
-obstacle2 = (-0.2, 0.6)
-obstacle3 = (-1,1.5)
-
-
-
-obstacles = [obstacle1, obstacle2, obstacle3]
+# obstacle1 = (0.5, 0.5)
+# obstacle2 = (-0.2, 0.6)
+# obstacle3 = (-1,1.5)
 
 
-path = rrt.rrt(start, end, obstacles)
 
-if path:
-    print("Path Found",path)
+# obstacles = [obstacle1, obstacle2, obstacle3]
 
-else:
-    print("path not found")
 
-plt.figure()
-plt.plot([start[0],end[0]],[start[1],end[1]],'go',label='plot')
+# path = rrt.rrt(start, end, obstacles)
 
-for obstacle in obstacles:
-    plt.plot(obstacle[0], obstacle[1], 'ro', label='Obstacle')
+# if path:
+#     print("Path Found",path)
 
-if path:
-    path_x = [point[0] for point in path]
-    path_y = [point[1] for point in path]
+# else:
+#     print("path not found")
 
-    plt.plot(path_x,path_y,'g',label='path')
+# plt.figure()
+# plt.plot([start[0],end[0]],[start[1],end[1]],'go',label='plot')
 
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.legend
-plt.title('RRT Obstacle avoidance')
-plt.grid()
-plt.show()
+# for obstacle in obstacles:
+#     plt.plot(obstacle[0], obstacle[1], 'ro', label='Obstacle')
 
+# if path:
+#     path_x = [point[0] for point in path]
+#     path_y = [point[1] for point in path]
+
+#     plt.plot(path_x,path_y,'g',label='path')
+
+# plt.xlabel('X')
+# plt.ylabel('Y')
+# plt.legend
+# plt.title('RRT Obstacle avoidance')
+# plt.grid()
+# plt.show()
+# plt.xlim[-3.01,0.0]
+# plt.ylim[0.0,3.01]
