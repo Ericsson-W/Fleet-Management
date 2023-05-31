@@ -43,8 +43,7 @@ class constant_linear_vel():
 
         self.goal_paths             = goal_paths
 
-        self.controlled_vehicles = controlled_vehicles
-        
+
         self.vehicles_control_info = {
             vehicle: {"closest_path_point_index": None, "target_pos": None,
             "lateral_controller": PID(controller_parameters['PID'])} 
@@ -122,7 +121,7 @@ class constant_linear_vel():
 
 class intersection_demo():
     # self, controller_parameters: dict, optitrack_parameters: dict, path_generator, controlled_vehicles, goal_paths, delta_t
-    def __init__(self, controller_parameters: dict, path_parameters: dict, path_generator, controlled_vehicles, goal_paths, delta_t,obstacles:dict):
+    def __init__(self, controller_parameters: dict, path_parameters: dict, path_generator, controlled_vehicles, goal_paths, delta_t,obstacles:dict,fleet_info:dict):
         
         self.v_bar:float        = controller_parameters["v_bar"]
         self.distance2front     = controller_parameters['distance2front']
@@ -137,7 +136,20 @@ class intersection_demo():
         self.intersection_waypoints = path_generator.intersection_waypoints
 
         self.controlled_vehicles = controlled_vehicles
-        
+
+        self.fleet_info = fleet_info
+        self.fleets = {
+            fleet: {'leader': members[0], 'followers': members[1:] if len(members) > 1 else []} 
+            for fleet, members in fleet_info.items() if members
+        }
+
+
+        self.fleet_roles={}
+        for fleet,members in self.fleets.items():
+            self.fleet_roles[members['leader']]='leader'
+            for follower in members['followers']:
+                self.fleet_roles[follower]='follower'
+
         self.vehicles_control_info = {
             vehicle: {"closest_path_point_index": None, "target_pos": None,
             "at_intersection": False, "intersection_waypoint": None,"obstacle_detected": False,"State":"normal",
@@ -163,6 +175,7 @@ class intersection_demo():
         self.iteration_count=0
         self.legend = False
         self.figures={}
+
 
 
     def plot_path(self, vehicle):
@@ -195,132 +208,150 @@ class intersection_demo():
         """ Uses info/values obtained from the control_step() to calculate the
             desired linear and angular velocities for the vehicles.
         """
+        vehicle_key=f'td{str(vehicle).zfill(2)}'
+        if self.fleet_roles[vehicle_key]=='leader': #leader
 
-        # Base value for v
-        v = self.v_bar
-
-        # TODO: why does self.controlled_vehicles[vehicle].position not work? need self.controlled_vechiles[vehicle].position?
-        angle2target = dyn.angle(self.vehicles_control_info[vehicle]['target_pos'] - self.controlled_vehicles[vehicle].position, radians=True)
-        heading_error = angle_within_range(angle2target - self.controlled_vehicles[vehicle].angle) # Range [-180, +180]
-        
-        # Base value for omega
-        omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t) # PID controller
-
-        state = self.vehicles_control_info[vehicle]['state']
-
-        # If too close to front vehicle
-        if (distance2front_vehicle < self.distance2front):
-            v = 0.0
-            omega = 0.0
-
-
-        if state == 'intersection':
-        # If vehicle at intersection
-            if (self.vehicles_control_info[vehicle]['at_intersection']):
-                print(f"vehicle {vehicle} at intersection.")
-                distance2_intersect = np.linalg.norm(self.vehicles_control_info[vehicle]['intersection_waypoint'] - self.controlled_vehicles[vehicle].position)
-
-                # If not close enough to stop line slow down to reach it.
-                if (distance2_intersect > 0.10):
-                    v = self.v_bar * 0.9
-                    print("slowing down pre_intersection")
-                else:
-                    print("stopping at intersection")
-                    v = 0.0
-                    omega = 0.0       
-            # if (self.vehicles_control_info[vehicle]['at_intersection']):
-            #     print(f"vehicle {vehicle} at intersection.")
-            #     distance2_intersect = np.linalg.norm(self.vehicles_control_info[vehicle]['intersection_waypoint'] - self.controlled_vehicles[vehicle].position)
-
-            #     # If not close enough to stop line slow down to reach it.
-            #     if (distance2_intersect > 0.10):
-            #         v = self.v_bar * 0.9
-            #         print("slowing down pre_intersection")
-            #     else:
-            #         if vehicle not in self.intersection_stoptime:
-            #             self.intersection_stoptime[vehicle]=time.time()
-
-            #         time_since = time.time() - self.intersection_stoptime[vehicle]
-            #         print(f"Vehicle{vehicle}:",time_since)
-            #         if time_since >=0.002:
-            #             omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)
-            #             v = 0.5
-            #             print(f"Vehicle{vehicle}starting to move after 5 seconds")
-
-            #         else: 
-            #             v = 0.0
-            #             omega = 0.0
-            #             print("stopping at intersection")
-
-            #     if v>0 and vehicle in self.intersection_stoptime:
-            #         del self.intersection_stoptime[vehicle]
-
-        elif state == 'obstacle':
-        # If too close to obstacle
-            omega_default = omega
-            v_default = v
-            cond = False
-
-            for obstacle_key, obstacle in self.obstacles.items():
-                dx, dy  = abs(self.controlled_vehicles[vehicle].position[0])-obstacle[0],abs(self.controlled_vehicles[vehicle].position[1])-obstacle[1]
-                distance = np.sqrt(dx**2 + dy**2)
-                print(self.controlled_vehicles[vehicle].position)
-                print(distance)
-                if distance <= 0.5:
-                    # RRT
-
-                    cond = True
-                    print('obstacle detected')
-                    rrt = RRT()
-                    path = rrt.rrt(self.controlled_vehicles[vehicle].position,self.vehicles_control_info[vehicle]['target_pos'],obstacle)
-
-                    dy_target = path[1][1]- self.controlled_vehicles[vehicle].position[1] 
-                    dx_target = path[1][0]- self.controlled_vehicles[vehicle].position[0]
-                                      
-                    angle_target = math.atan2(dy_target, dx_target)
-                    print('this is angle target',angle_target)
-                    omega = angle_target
-                    v = 0.3
-
-                    # Circular
-
-                    # cond = True
-                    # radius = 0.75
-                    # print ('obstacle detected')
-                    # arc = distance*math.pi
-                    # omega = -arc/2               
-                    # v=0.3    
-                    # # v = max(abs(omega*radius),0.3)
-                    # break
-
-                else:
-                    cond = False
-
-                if not cond:
-                    omega = omega_default
-                    v = v_default
-                else:
-                    dy_target = self.vehicles_control_info[vehicle]['target_pos'][1] - self.controlled_vehicles[vehicle].position[1]
-                    dx_target = self.vehicles_control_info[vehicle]['target_pos'][0] - self.controlled_vehicles[vehicle].position[0]
-                    angle_target = math.atan2(dy_target, dx_target)
-                    omega = angle_target
-            # Track time and distance
-            current_time=time.time()
-            elapsed_time = current_time - self.vehicles_control_info[vehicle]['last_timestamp']
-            current_position = self.controlled_vehicles[vehicle].position
-            last_position = self.vehicles_control_info[vehicle]['last_position']
-            distance_travelled = np.linalg.norm(np.array(current_position) - np.array(last_position))
-            if self.vehicles_control_info[vehicle]['last_state'] == 'obstacle':
-                self.vehicles_control_info[vehicle]['total_time_in_obstacle'] += elapsed_time
-                self.vehicles_control_info[vehicle]['total_distance_in_obstacle'] += distance_travelled
-            self.vehicles_control_info[vehicle]['last_timestamp'] = current_time
-            self.vehicles_control_info[vehicle]['last_position'] = current_position
-
-
-        else:
+            # Base value for v
             v = self.v_bar
-            omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)          
-        # print(self.controlled_vehicles[vehicle].position)
+
+            # TODO: why does self.controlled_vehicles[vehicle].position not work? need self.controlled_vechiles[vehicle].position?
+            angle2target = dyn.angle(self.vehicles_control_info[vehicle]['target_pos'] - self.controlled_vehicles[vehicle].position, radians=True)
+            heading_error = angle_within_range(angle2target - self.controlled_vehicles[vehicle].angle) # Range [-180, +180]
+            
+            # Base value for omega
+            omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t) # PID controller
+
+            state = self.vehicles_control_info[vehicle]['state']
+
+            # If too close to front vehicle
+            if (distance2front_vehicle < self.distance2front):
+                v = 0.0
+                omega = 0.0
+
+
+            if state == 'intersection':
+            # If vehicle at intersection
+                if (self.vehicles_control_info[vehicle]['at_intersection']):
+                    print(f"vehicle {vehicle} at intersection.")
+                    distance2_intersect = np.linalg.norm(self.vehicles_control_info[vehicle]['intersection_waypoint'] - self.controlled_vehicles[vehicle].position)
+
+                    # If not close enough to stop line slow down to reach it.
+                    if (distance2_intersect > 0.10):
+                        v = self.v_bar * 0.9
+                        print("slowing down pre_intersection")
+                    else:
+                        print("stopping at intersection")
+                        v = 0.0
+                        omega = 0.0       
+
+
+            elif state == 'obstacle':
+            # If too close to obstacle
+                omega_default = omega
+                v_default = v
+                cond = False
+
+                for obstacle_key, obstacle in self.obstacles.items():
+                    dx, dy  = abs(self.controlled_vehicles[vehicle].position[0])-obstacle[0],abs(self.controlled_vehicles[vehicle].position[1])-obstacle[1]
+                    distance = np.sqrt(dx**2 + dy**2)
+                    print(self.controlled_vehicles[vehicle].position)
+                    print(distance)
+                    if distance <= 0.5:
+                        # RRT
+
+                        # cond = True
+                        # print('obstacle detected')
+                        # rrt = RRT()
+                        # path = rrt.rrt(self.controlled_vehicles[vehicle].position,self.vehicles_control_info[vehicle]['target_pos'],obstacle)
+
+                        # dy_target = path[1][1]- self.controlled_vehicles[vehicle].position[1] 
+                        # dx_target = path[1][0]- self.controlled_vehicles[vehicle].position[0]
+                                        
+                        # angle_target = math.atan2(dy_target, dx_target)
+                        # print('this is angle target',angle_target)
+                        # omega = angle_target
+                        # v = 0.3
+
+                        # Circular
+
+                        cond = True
+                        radius = 0.75
+                        print ('obstacle detected')
+                        arc = distance*math.pi
+                        omega = -arc/2               
+                        v=0.3    
+                        # v = max(abs(omega*radius),0.3)
+                        break
+
+                    else:
+                        cond = False
+
+                    if not cond:
+                        omega = omega_default
+                        v = v_default
+                    else:
+                        dy_target = self.vehicles_control_info[vehicle]['target_pos'][1] - self.controlled_vehicles[vehicle].position[1]
+                        dx_target = self.vehicles_control_info[vehicle]['target_pos'][0] - self.controlled_vehicles[vehicle].position[0]
+                        angle_target = math.atan2(dy_target, dx_target)
+                        omega = angle_target
+                # Track time and distance
+                current_time=time.time()
+                elapsed_time = current_time - self.vehicles_control_info[vehicle]['last_timestamp']
+                current_position = self.controlled_vehicles[vehicle].position
+                last_position = self.vehicles_control_info[vehicle]['last_position']
+                distance_travelled = np.linalg.norm(np.array(current_position) - np.array(last_position))
+                if self.vehicles_control_info[vehicle]['last_state'] == 'obstacle':
+                    self.vehicles_control_info[vehicle]['total_time_in_obstacle'] += elapsed_time
+                    self.vehicles_control_info[vehicle]['total_distance_in_obstacle'] += distance_travelled
+                self.vehicles_control_info[vehicle]['last_timestamp'] = current_time
+                self.vehicles_control_info[vehicle]['last_position'] = current_position
+
+
+            else: #Normal mode
+                
+                v = self.v_bar
+                omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)          
+
+        else: #follower
+            leader_vehicle=None
+            leader_pos=None
+            leader_angle=None
+
+            for fleet, members in self.fleet_info.items():
+                if vehicle_key in members:
+                    leader__vehicle=members[0]
+                if leader_vehicle in self.controlled_vehicles:
+                    leader = self.controlled_vehicles[leader_vehicle]
+                    leader_pos = leader.position
+                    leader_angle = leader.angle
+                    break
+
+            if leader_pos is not None and leader_angle is not None:
+                # Base value for v
+                v = self.v_bar
+
+
+                desired_distance = 0.4  
+
+
+                dy = leader_pos[1] - self.controlled_vehicles[vehicle_key].position[1]
+                dx = leader_pos[0] - self.controlled_vehicles[vehicle_key].position[0]
+                angle_to_leader = math.atan2(dy, dx)
+
+
+                distance_to_leader = np.linalg.norm(np.array(self.controlled_vehicles[vehicle_key].position) - np.array(leader_pos))
+
+    
+                if distance_to_leader > desired_distance:
+                    v = self.v_bar * 0.9 
+                elif distance_to_leader < desired_distance:
+                    v = self.v_bar * 1.1  
+
+
+                angle_error = angle_within_range(angle_to_leader - self.controlled_vehicles[vehicle_key].angle)
+
+
+                omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(angle_error, self.delta_t)                    
 
         self.vehicles_control_info[vehicle]['last_state'] = state
         with open('vehicle_info.txt', 'a') as file:
@@ -332,9 +363,14 @@ class intersection_demo():
 
 
     def control_step(self):
-
         for vehicle in self.controlled_vehicles:
-                        
+
+            # vehicle_key = f'td{str(vehicle).zfill(2)}'
+            # if self.fleet_roles[vehicle_key ]=='leader':
+            #     print(f'Vehicle {vehicle_key} is a leader') 
+            # else:
+            #     print(f'Vehicle {vehicle_key } is not a leader')
+
             
             # Selecting sub-section of path where the goal point can be located.
             ## Because of path overlap at intersection, basic min distance would not work.
@@ -446,14 +482,17 @@ class intersection_demo():
             v, omega = self.control_action(vehicle, distance2front_vehicle)
             # Robot object converts (v,omega) to the required ROS command
             self.controlled_vehicles[vehicle].publish_cmd(v, omega)
-
+            
             print(f"v: {v}, omega: {omega}")
+            
 
             # Store vehicle positions
             self.vehicle_positions[vehicle].append(self.controlled_vehicles[vehicle].position)
-
-            # Update the plot
-
+            
+            # # Update the plot
+            # if self.iteration_count % 10 == 0:
+            #     self.plot_path(vehicle)
+            # self.iteration_count += 1
 
 ########################
 ### Helper Functions ####
