@@ -259,28 +259,28 @@ class intersection_demo():
                     if distance <= 0.5:
                         # RRT
 
-                        # cond = True
-                        # print('obstacle detected')
-                        # rrt = RRT()
-                        # path = rrt.rrt(self.controlled_vehicles[vehicle].position,self.vehicles_control_info[vehicle]['target_pos'],obstacle)
+                        cond = True
+                        print('obstacle detected')
+                        rrt = RRT()
+                        path = rrt.rrt(self.controlled_vehicles[vehicle].position,self.vehicles_control_info[vehicle]['target_pos'],obstacle)
 
-                        # dy_target = path[1][1]- self.controlled_vehicles[vehicle].position[1] 
-                        # dx_target = path[1][0]- self.controlled_vehicles[vehicle].position[0]
+                        dy_target = path[1][1]- self.controlled_vehicles[vehicle].position[1] 
+                        dx_target = path[1][0]- self.controlled_vehicles[vehicle].position[0]
                                         
-                        # angle_target = math.atan2(dy_target, dx_target)
-                        # print('this is angle target',angle_target)
-                        # omega = angle_target
-                        # v = 0.3
+                        angle_target = math.atan2(dy_target, dx_target)
+                        print('this is angle target',angle_target)
+                        omega = angle_target
+                        v = 0.3
 
                         # Circular
 
-                        cond = True
-                        radius = 0.75
-                        print ('obstacle detected')
-                        arc = distance*math.pi
-                        omega = -arc/2               
-                        v=0.3    
-                        # v = max(abs(omega*radius),0.3)
+                        # cond = True
+                        # radius = 0.75
+                        # print ('obstacle detected')
+                        # arc = distance*math.pi
+                        # omega = -arc/2               
+                        # v=0.3    
+                        # # v = max(abs(omega*radius),0.3)
                         break
 
                     else:
@@ -310,28 +310,40 @@ class intersection_demo():
             else: #Normal mode
                 
                 v = self.v_bar
-                omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)          
+                omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)       
 
-        else: #follower
+            self.vehicles_control_info[vehicle]['last_state'] = state
+            with open('vehicle_info.txt', 'a') as file:
+                file.write(f"Vehicle {vehicle}\n")
+                file.write(f"Total time in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_time_in_obstacle']} seconds\n")
+                file.write(f"Distance travelled in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_distance_in_obstacle']} units\n")   
+
+        elif self.fleet_roles[vehicle_key]=='follower': #follower
             leader_vehicle=None
             leader_pos=None
             leader_angle=None
 
             for fleet, members in self.fleet_info.items():
                 if vehicle_key in members:
-                    leader__vehicle=members[0]
+                    leader_vehicle=int(members[0][2:])
                 if leader_vehicle in self.controlled_vehicles:
                     leader = self.controlled_vehicles[leader_vehicle]
+                    print(leader)
                     leader_pos = leader.position
                     leader_angle = leader.angle
                     break
+    
+            print(f"Leader of fleet {fleet}: {leader_vehicle}")
+            print(f"Leader position: {leader_pos}")
+            print(f"Leader angle: {leader_angle}")
 
             if leader_pos is not None and leader_angle is not None:
+                vehicle_key=int(vehicle_key[2:])
                 # Base value for v
                 v = self.v_bar
 
 
-                desired_distance = 0.4  
+                desired_distance = 0.5 
 
 
                 dy = leader_pos[1] - self.controlled_vehicles[vehicle_key].position[1]
@@ -343,21 +355,22 @@ class intersection_demo():
 
     
                 if distance_to_leader > desired_distance:
-                    v = self.v_bar * 0.9 
+                    v = self.v_bar * 1.1
                 elif distance_to_leader < desired_distance:
-                    v = self.v_bar * 1.1  
+                    v = self.v_bar * 0.3 
+                elif distance_to_leader < 0.3:
+                    v = 0
 
 
                 angle_error = angle_within_range(angle_to_leader - self.controlled_vehicles[vehicle_key].angle)
-
-
+            
                 omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(angle_error, self.delta_t)                    
 
-        self.vehicles_control_info[vehicle]['last_state'] = state
-        with open('vehicle_info.txt', 'a') as file:
-            file.write(f"Vehicle {vehicle}\n")
-            file.write(f"Total time in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_time_in_obstacle']} seconds\n")
-            file.write(f"Distance travelled in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_distance_in_obstacle']} units\n")
+            else:
+                print('this should not be here?')
+                v=0
+                omega=0
+
             
         return v, omega
 
