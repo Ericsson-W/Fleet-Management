@@ -10,7 +10,8 @@ import utils.pre_processing as dyn
 from robots.duckietown import duckiebot_inverse_kinematics
 from robots.PID import PID
 from robots.RRT import RRT
-
+import openpyxl
+from openpyxl import load_workbook
 
 
 # TODO: make something to deal with ROS custom message setup for computers (script?)
@@ -312,11 +313,62 @@ class intersection_demo():
                 v = self.v_bar
                 omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)       
 
+            # write into txt file to determine time and distance in obstacle state
             self.vehicles_control_info[vehicle]['last_state'] = state
             with open('vehicle_info.txt', 'a') as file:
                 file.write(f"Vehicle {vehicle}\n")
                 file.write(f"Total time in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_time_in_obstacle']} seconds\n")
-                file.write(f"Distance travelled in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_distance_in_obstacle']} units\n")   
+                file.write(f"Distance travelled in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_distance_in_obstacle']} units\n") 
+
+            # write into excel file for plotting
+            filename='vehicle_info.xlsx'
+
+            try:
+                wb=load_workbook(filename)
+            except FileNotFoundError:
+                wb=openpyxl.Workbook()
+            
+            for vehicle_id in self.controlled_vehicles:
+                vehicle_key=f'td{str(vehicle).zfill(2)}'
+
+                sheet = wb[vehicle_key] if vehicle_key in wb.sheetnames else wb.create_sheet(title=vehicle_key)
+                
+                row=sheet.max_row+1
+
+                current_location = self.controlled_vehicles[vehicle].position
+                target_location = self.vehicles_control_info[vehicle]['target_pos']
+                sheet[f"A{row}"] = current_location[0]  
+                sheet[f"B{row}"] = current_location[1]
+                sheet[f"C{row}"] = target_location[0]  
+                sheet[f"D{row}"] = target_location[1] 
+
+                sheet["A1"]="Current Location X"
+                sheet["B1"]="Current Location Y"
+                sheet["C1"]="Target Location X"
+                sheet["D1"]="Target Location Y"     
+
+                sheet.column_dimensions['A'].width=20                          
+                sheet.column_dimensions['B'].width=20
+                sheet.column_dimensions['C'].width=20                
+                sheet.column_dimensions['D'].width=20  
+
+            obstacle_sheet = wb["Obstacles"] if "Obstacles" in wb.sheetnames else wb.create_sheet(title="Obstacles")
+            if obstacle_sheet.max_row==1:
+                obstacle_sheet["A1"] = "Obstacle"
+                obstacle_sheet["B1"] = "Location"
+
+                obstacle_sheet.column_dimensions['A'].width=20                          
+                obstacle_sheet.column_dimensions['B'].width=20
+                obstacle_sheet.column_dimensions['C'].width=20  
+
+                row = obstacle_sheet.max_row + 1
+                for obstacle_key, obstacle_location in self.obstacles.items():
+                    obstacle_sheet[f"A{row}"] = obstacle_key
+                    obstacle_sheet[f"B{row}"] = obstacle_location[0]
+                    obstacle_sheet[f"C{row}"] = obstacle_location[1]           
+                    row += 1    
+ 
+            wb.save(filename)
 
         elif self.fleet_roles[vehicle_key]=='follower': #follower
             leader_vehicle=None
