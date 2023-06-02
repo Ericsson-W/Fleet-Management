@@ -60,57 +60,65 @@ class RRT:
             if parent is not None:
                 plt.plot([child[0], parent[0]], [child[1], parent[1]], 'b-', alpha=0.5)
 
-rrt=RRT()
+# rrt=RRT()
 
-start = (0,1.5)
-end= (-1.5,0)
+# start = (0,1.5)
+# end= (-1.5,0)
 
-obstacle1 = (0.5, 0.5)
-obstacle2 = (-0.2, 0.6)
-obstacle3 = (-1,1.5)
-
-
-
-obstacles = [obstacle1, obstacle2, obstacle3]
+# obstacle1 = (0.5, 0.5)
+# obstacle2 = (-0.2, 0.6)
+# obstacle3 = (-1,1.5)
 
 
-path = rrt.rrt(start, end, obstacles)
 
-if path:
-    print("Path Found",path)
+# obstacles = [obstacle1, obstacle2, obstacle3]
 
-else:
-    print("path not found")
 
-plt.figure()
-plt.plot([start[0],end[0]],[start[1],end[1]],'go',label='plot')
+# path = rrt.rrt(start, end, obstacles)
 
-for obstacle in obstacles:
-    plt.plot(obstacle[0], obstacle[1], 'ro', label='Obstacle')
+# if path:
+#     print("Path Found",path)
 
-if path:
-    path_x = [point[0] for point in path]
-    path_y = [point[1] for point in path]
+# else:
+#     print("path not found")
 
-    plt.plot(path_x,path_y,'g',label='path')
+# plt.figure()
+# plt.plot([start[0],end[0]],[start[1],end[1]],'go',label='end points')
 
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.legend
-plt.title('RRT Obstacle avoidance')
-plt.grid()
-plt.show()
+# for i, obstacle in enumerate(obstacles):
+#     if i == 0:  # only add label for the first obstacle
+#         plt.plot(obstacle[0], obstacle[1], 'ro', label='Obstacle')
+#     else:
+#         plt.plot(obstacle[0], obstacle[1], 'ro')
 
-plt.figure()
-plt.plot([start[0],end[0]],[start[1],end[1]],'go',label='plot')
+# if path:
+#     path_x = [point[0] for point in path]
+#     path_y = [point[1] for point in path]
 
-for obstacle in obstacles:
-    plt.plot(obstacle[0], obstacle[1], 'ro', label='Obstacle')
+#     plt.plot(path_x,path_y,'g',label='path')
 
-rrt.plot_tree()
+# plt.xlabel('X')
+# plt.ylabel('Y')
+# plt.legend()
+# plt.title('RRT Obstacle avoidance')
+# plt.grid()
+# plt.show()
 
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.title('RRT Tree')
-plt.grid()
-plt.show()
+
+# plt.figure()
+# plt.plot([start[0],end[0]],[start[1],end[1]],'go',label='end points')
+
+# for i, obstacle in enumerate(obstacles):
+#     if i == 0:  # only add label for the first obstacle
+#         plt.plot(obstacle[0], obstacle[1], 'ro', label='Obstacle')
+#     else:
+#         plt.plot(obstacle[0], obstacle[1], 'ro')
+
+# rrt.plot_tree()
+
+# plt.xlabel('X')
+# plt.ylabel('Y')
+# plt.title('RRT Tree')
+# plt.legend()
+# plt.grid()
+# plt.show()
