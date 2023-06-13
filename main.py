@@ -7,6 +7,12 @@ from utils.read_configs import ConfigReader
 from robots.run_live import LiveSimulator
 #from simulator.run_scenario import run as run_scenario
 
+if os.path.exists("vehicle_info.txt"):
+    os.remove("vehicle_info.txt")
+
+if os.path.exists("vehicle_info.xlsx"):
+    os.remove("vehicle_info.xlsx")
+
 while not os.path.isfile('main.py'):
     par_dir = Path(os.getcwd()).parent
     os.chdir(par_dir)
@@ -20,3 +26,4 @@ if params['main']['run_live']:
     sim.run_game() 
 # else:
     # run_scenario(params) # must test with osc as well
+
