@@ -20,7 +20,7 @@ import sys
 import ros as ros
 import robots.duckietown as duckietown
 import robots.optitrack as optitrack
-from robots.old_controllers import constant_linear_vel, intersection_demo
+from robots.old_controllers_fault import constant_linear_vel, intersection_demo
 from robots.path_generation import PathGenerator
 from utils.game import Game
 
@@ -29,7 +29,6 @@ from utils.game import Game
 
 class LiveSimulator:
     def __init__(self, params):
-
         # Params given by ConfigReader in main.py        
         self.params = params
 
@@ -48,7 +47,7 @@ class LiveSimulator:
         
         ## Duckiebots, name convention="tdXX"
         self.controlled_vehicles.update(
-            {int(vehicle_name[2:5]): duckietown.Duckiebot(vehicle_name)  
+            {int(vehicle_name[2:5]): duckietown.Duckiebot(vehicle_name)
                 for vehicle_name in self.params['robots']['controlled_vehicles'] if vehicle_name[0:2] == "td"}
         )
 
@@ -109,9 +108,12 @@ class LiveSimulator:
         elif self.controller_type == "central":
 
              if controller_name == "intersection_demo" or controller_name == "constant_linear_vel":
+                 obstacles = self.params['robots'].get('obstacles', [])       
+                 fleet_info = self.params['robots'].get('fleet_info',{})     
+
                  self.controller = controller_class(
                      controller_params, self.params['robots'], self.path_generator,
-                     self.controlled_vehicles, self.goal_paths, self.delta_t
+                     self.controlled_vehicles, self.goal_paths, self.delta_t,obstacles,fleet_info
                  )
 
 

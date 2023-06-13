@@ -54,6 +54,7 @@ class Duckiebot():
         self.vehicle_hostname: str          = hostname
         self.vehicle_type: str              = "duckiebot"
         self.dimensions: List[float, float] = [0.211, 0.131] # [length, width] in meters
+        # self.vehicle_name = ['td09']
 
         # Wrt to global coordinate frame
         self.position       = np.array([0.0, 0.0])
@@ -71,6 +72,7 @@ class Duckiebot():
 
         # self.rospub_2dPose: rospy.Publisher = rospy.Publisher(
         #     f'/{self.hostname}/debug_msgs/2dpose', TwoDimensionalPlotDatapoint, queue_size=1)
+
 
 
     def get_kinematics_parameters(self):
@@ -104,7 +106,7 @@ class Duckiebot():
     def publish_cmd(self, v, omega):
         """ TODO: change command to v, steering angle?
         """
-
+        # print(f"Publishing cmd for {self.vehicle_name}: v: {v}, omega: {omega}")
         wheel_vel_left, wheel_vel_right = duckiebot_inverse_kinematics(self.kinematic_parameters, v, omega)
 
         wheelVel_msg = WheelsCmdStamped()

@@ -160,7 +160,8 @@ class intersection_demo():
             "total_distance_in_obstacle":0,
             "last_position":0,
             "last_state":None,
-            "last_timestamp":0
+            "last_timestamp":0,
+            "past_positions":[]
             }
             for vehicle in self.controlled_vehicles.keys()
         }
@@ -178,7 +179,7 @@ class intersection_demo():
         self.legend = False
         self.figures={}
         self.start_time=datetime.datetime.now()
-        self.e_time=[0]
+        
 
     def plot_path(self, vehicle):
         vehicle_positions = np.array(self.vehicle_positions[vehicle])
@@ -210,10 +211,11 @@ class intersection_demo():
         """ Uses info/values obtained from the control_step() to calculate the
             desired linear and angular velocities for the vehicles.
         """
-        start_time=datetime.datetime.now()
         vehicle_key=f'td{str(vehicle).zfill(2)}'
         jerk=0
         TTC=0
+        v=0
+        omega=0           
         if self.fleet_roles[vehicle_key]=='leader': #leader
 
             # Base value for v
@@ -318,6 +320,7 @@ class intersection_demo():
                 
                 v = self.v_bar
                 omega = self.vehicles_control_info[vehicle]['lateral_controller'].control_step(heading_error, self.delta_t)       
+
             # write into txt file to determine time and distance in obstacle state
             self.vehicles_control_info[vehicle]['last_state'] = state
             with open('vehicle_info.txt', 'a') as file:
@@ -325,6 +328,56 @@ class intersection_demo():
                 file.write(f"Total time in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_time_in_obstacle']} seconds\n")
                 file.write(f"Distance travelled in 'obstacle' state: {self.vehicles_control_info[vehicle]['total_distance_in_obstacle']} units\n") 
 
+            # # write into excel file for plotting
+            # filename='vehicle_info.xlsx'
+
+            # try:
+            #     wb=load_workbook(filename)
+            # except FileNotFoundError:
+            #     wb=openpyxl.Workbook()
+            
+            # for vehicle_id in self.controlled_vehicles:
+            #     vehicle_key=f'td{str(vehicle).zfill(2)}'
+
+            #     sheet = wb[vehicle_key] if vehicle_key in wb.sheetnames else wb.create_sheet(title=vehicle_key)
+                
+            #     row=sheet.max_row+1
+
+            #     current_location = self.controlled_vehicles[vehicle].position
+            #     target_location = self.vehicles_control_info[vehicle]['target_pos']
+            #     sheet[f"A{row}"] = current_location[0]  
+            #     sheet[f"B{row}"] = current_location[1]
+            #     sheet[f"C{row}"] = target_location[0]  
+            #     sheet[f"D{row}"] = target_location[1] 
+
+            #     sheet["A1"]="Current Location X"
+            #     sheet["B1"]="Current Location Y"
+            #     sheet["C1"]="Target Location X"
+            #     sheet["D1"]="Target Location Y"     
+
+            #     sheet.column_dimensions['A'].width=20                          
+            #     sheet.column_dimensions['B'].width=20
+            #     sheet.column_dimensions['C'].width=20                
+            #     sheet.column_dimensions['D'].width=20  
+
+            # obstacle_sheet = wb["Obstacles"] if "Obstacles" in wb.sheetnames else wb.create_sheet(title="Obstacles")
+            # if obstacle_sheet.max_row==1:
+            #     obstacle_sheet["A1"] = "Obstacle"
+            #     obstacle_sheet["B1"] = "Location X"
+            #     obstacle_sheet["C1"] = "Location Y"
+
+            #     obstacle_sheet.column_dimensions['A'].width=20                          
+            #     obstacle_sheet.column_dimensions['B'].width=20
+            #     obstacle_sheet.column_dimensions['C'].width=20  
+
+            #     row = obstacle_sheet.max_row + 1
+            #     for obstacle_key, obstacle_location in self.obstacles.items():
+            #         obstacle_sheet[f"A{row}"] = obstacle_key
+            #         obstacle_sheet[f"B{row}"] = obstacle_location[0]
+            #         obstacle_sheet[f"C{row}"] = obstacle_location[1]           
+            #         row += 1    
+ 
+            # wb.save(filename)
 
         elif self.fleet_roles[vehicle_key]=='follower': #follower
             leader_vehicle=None
@@ -333,14 +386,25 @@ class intersection_demo():
 
             for fleet, members in self.fleet_info.items():
                 if vehicle_key in members:
-                    # leader_vehicle=int(members[0][2:])
                     leader_vehicle = int(members[members.index(vehicle_key)-1][2:])
-                    
                 if leader_vehicle in self.controlled_vehicles:
                     leader = self.controlled_vehicles[leader_vehicle]
                     print(leader)
                     leader_pos = leader.position
                     leader_angle = leader.angle
+                    
+                    # # Store the current position of the vehicle on each timestep
+                    # past_positions = self.vehicles_control_info[vehicle]['past_positions']
+                    # past_positions.append(self.controlled_vehicles[vehicle].position)
+
+                    # delay = 50
+
+            
+                    # if len(past_positions) > delay:
+                    #     leader_pos = self.vehicles_control_info[leader_vehicle]['past_positions'][0]
+                    #     self.vehicles_control_info[leader_vehicle]['past_positions'].pop(0)
+
+
                     break
     
             print(f"Leader of fleet {fleet}: {leader_vehicle}")
@@ -356,12 +420,9 @@ class intersection_demo():
                 desired_distance = 0.5 
 
 
-                # dy = leader_pos[1] - self.controlled_vehicles[vehicle_key].position[1]
-                # dx = leader_pos[0] - self.controlled_vehicles[vehicle_key].position[0]
-                # angle_to_leader = math.atan2(dy, dx)
-
-                angle_to_leader = dyn.angle(leader_pos- self.controlled_vehicles[vehicle].position, radians=True)
-
+                dy = leader_pos[1] - self.controlled_vehicles[vehicle_key].position[1]
+                dx = leader_pos[0] - self.controlled_vehicles[vehicle_key].position[0]
+                angle_to_leader = math.atan2(dy, dx)
 
 
                 distance_to_leader = np.linalg.norm(np.array(self.controlled_vehicles[vehicle_key].position) - np.array(leader_pos))
@@ -376,112 +437,100 @@ class intersection_demo():
                     v = 0
 
 
-
                 angle_error = angle_within_range(angle_to_leader - self.controlled_vehicles[vehicle_key].angle)
             
-                omega = 0.7*self.vehicles_control_info[vehicle]['lateral_controller'].control_step(angle_error, self.delta_t)                    
+                omega = 0.3*self.vehicles_control_info[vehicle]['lateral_controller'].control_step(angle_error, self.delta_t)                    
 
 
                 vehicle_info=self.vehicles_control_info[vehicle_key]
 
-                # end_time=datetime.datetime.now()
-                # delta_t_real=(end_time-start_time).total_seconds()
+                vel_diff=v-vehicle_info.get('previous_velocity',v)
+                current_a=vel_diff/self.delta_t
+
+                acc_diff=current_a - vehicle_info.get('previous_acceleration',current_a)
+                jerk=acc_diff/self.delta_t
+
+                vehicle_info['previous_velocity']=v
+                vehicle_info['previous_acceleration']=current_a
+
+                TTC=100
+                if v!=0:
+                    TTC=distance_to_leader/v           
 
 
 
-
-            else:
-                print('There has been an Error')
-                v=0
-                omega=0
-
+        else:
+            print('There has been an Error')
+            v=0
+            omega=0
 
 
-        # # write into excel file for plotting
-        # filename='vehicle_info.xlsx'
+        # write into excel file for plotting
+        filename='vehicle_info.xlsx'
 
-        # try:
-        #     wb=load_workbook(filename)
-        # except FileNotFoundError:
-        #     wb=openpyxl.Workbook()
+        try:
+            wb=load_workbook(filename)
+        except FileNotFoundError:
+            wb=openpyxl.Workbook()
         
+        for vehicle_id in self.controlled_vehicles:
+            vehicle_key=f'td{str(vehicle_id).zfill(2)}'
 
-        # vehicle_key=f'td{str(vehicle).zfill(2)}'
+            sheet = wb[vehicle_key] if vehicle_key in wb.sheetnames else wb.create_sheet(title=vehicle_key)
+            
+            row=sheet.max_row+1
 
-        # sheet = wb[vehicle_key] if vehicle_key in wb.sheetnames else wb.create_sheet(title=vehicle_key)
-        
-        # row=sheet.max_row+1
-
-        # current_time=datetime.datetime.now()
-        # elapsed_time=(current_time-self.start_time).total_seconds()
-        # self.e_time.append(elapsed_time)
-        # time_diff=self.e_time[-1]-self.e_time[-2]
+            current_time=datetime.datetime.now()
+            elapsed_time=(current_time-self.start_time).total_seconds()
 
 
-        # current_location = self.controlled_vehicles[vehicle].position
-        # target_location = self.vehicles_control_info[vehicle]['target_pos']
-        # sheet[f"A{row}"] = current_location[0]  
-        # sheet[f"B{row}"] = current_location[1]
-        # sheet[f"C{row}"] = target_location[0]  
-        # sheet[f"D{row}"] = target_location[1] 
+            current_location = self.controlled_vehicles[vehicle].position
+            target_location = self.vehicles_control_info[vehicle]['target_pos']
+            sheet[f"A{row}"] = current_location[0]  
+            sheet[f"B{row}"] = current_location[1]
+            sheet[f"C{row}"] = target_location[0]  
+            sheet[f"D{row}"] = target_location[1] 
 
-        # if self.fleet_roles[vehicle_key]!='leader':
-        #     vel_diff=v-vehicle_info.get('previous_velocity',v)           
-        #     current_a=vel_diff/time_diff
+            if self.fleet_roles[vehicle_key]!='leader':
+                sheet[f"E{row}"] = jerk
+                sheet[f"F{row}"] = TTC
+            sheet[f"G{row}"]=elapsed_time
 
+            sheet["A1"]="Current Location X"
+            sheet["B1"]="Current Location Y"
+            sheet["C1"]="Target Location X"
+            sheet["D1"]="Target Location Y"     
+            if self.fleet_roles[vehicle_key]!='leader':
+                sheet["E1"] = "da/dt"
+                sheet["F1"] = "TTC"     
+            sheet["G1"]="Time"
 
-        #     acc_diff=current_a - vehicle_info.get('previous_acceleration',current_a)
-        #     jerk=acc_diff/time_diff
+            sheet.column_dimensions['A'].width=20                          
+            sheet.column_dimensions['B'].width=20
+            sheet.column_dimensions['C'].width=20                
+            sheet.column_dimensions['D'].width=20
+            sheet.column_dimensions['E'].width=20                
+            sheet.column_dimensions['F'].width=20    
+            sheet.column_dimensions['G'].width=20   
 
-        #     vehicle_info['previous_velocity']=v
-        #     print('prev vel is',vehicle_info['previous_velocity'])
-        #     print('time_diff is',time_diff)
-        #     vehicle_info['previous_acceleration']=current_a    
+        obstacle_sheet = wb["Obstacles"] if "Obstacles" in wb.sheetnames else wb.create_sheet(title="Obstacles")
+        if obstacle_sheet.max_row==1:
+            obstacle_sheet["A1"] = "Obstacle"
+            obstacle_sheet["B1"] = "Location X"
+            obstacle_sheet["C1"] = "Location Y"
 
-        #     TTC=100
-        #     if v!=0:
-        #         TTC=distance_to_leader/v
+            obstacle_sheet.column_dimensions['A'].width=20                          
+            obstacle_sheet.column_dimensions['B'].width=20
+            obstacle_sheet.column_dimensions['C'].width=20  
 
+            row = obstacle_sheet.max_row + 1
+            for obstacle_key, obstacle_location in self.obstacles.items():
+                obstacle_sheet[f"A{row}"] = obstacle_key
+                obstacle_sheet[f"B{row}"] = obstacle_location[0]
+                obstacle_sheet[f"C{row}"] = obstacle_location[1]           
+                row += 1    
 
-        #     sheet[f"E{row}"] = jerk/1000
-        #     sheet[f"F{row}"] = TTC
-        # sheet[f"G{row}"]=elapsed_time
-
-        # sheet["A1"]="Current Location X"
-        # sheet["B1"]="Current Location Y"
-        # sheet["C1"]="Target Location X"
-        # sheet["D1"]="Target Location Y"     
-        # if self.fleet_roles[vehicle_key]!='leader':
-        #     sheet["E1"] = "da/dt"
-        #     sheet["F1"] = "TTC"     
-        # sheet["G1"]="Time"
-
-        # sheet.column_dimensions['A'].width=20                          
-        # sheet.column_dimensions['B'].width=20
-        # sheet.column_dimensions['C'].width=20                
-        # sheet.column_dimensions['D'].width=20
-        # sheet.column_dimensions['E'].width=20                
-        # sheet.column_dimensions['F'].width=20    
-        # sheet.column_dimensions['G'].width=20   
-
-        # obstacle_sheet = wb["Obstacles"] if "Obstacles" in wb.sheetnames else wb.create_sheet(title="Obstacles")
-        # if obstacle_sheet.max_row==1:
-        #     obstacle_sheet["A1"] = "Obstacle"
-        #     obstacle_sheet["B1"] = "Location X"
-        #     obstacle_sheet["C1"] = "Location Y"
-
-        #     obstacle_sheet.column_dimensions['A'].width=20                          
-        #     obstacle_sheet.column_dimensions['B'].width=20
-        #     obstacle_sheet.column_dimensions['C'].width=20  
-
-        #     row = obstacle_sheet.max_row + 1
-        #     for obstacle_key, obstacle_location in self.obstacles.items():
-        #         obstacle_sheet[f"A{row}"] = obstacle_key
-        #         obstacle_sheet[f"B{row}"] = obstacle_location[0]
-        #         obstacle_sheet[f"C{row}"] = obstacle_location[1]           
-        #         row += 1    
-
-        # wb.save(filename)
+        wb.save(filename)
 
 
             
@@ -489,16 +538,9 @@ class intersection_demo():
 
 
     def control_step(self):
-
         for vehicle in self.controlled_vehicles:
 
-            # vehicle_key = f'td{str(vehicle).zfill(2)}'
-            # if self.fleet_roles[vehicle_key ]=='leader':
-            #     print(f'Vehicle {vehicle_key} is a leader') 
-            # else:
-            #     print(f'Vehicle {vehicle_key } is not a leader')
-
-            
+            self.vehicles_control_info[vehicle]['past_positions']=[]
             # Selecting sub-section of path where the goal point can be located.
             ## Because of path overlap at intersection, basic min distance would not work.
             if self.vehicles_control_info[vehicle]['closest_path_point_index'] is None:
